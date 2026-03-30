@@ -1,24 +1,29 @@
 const express = require("express");
 const mysql = require("mysql2");
-const cors = require("cors"); // ✅ added
+const cors = require("cors");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ✅ ONLY ONE DB CONNECTION (use Railway URL)
-const db = mysql.createConnection(process.env.MYSQL_URL);
+const db = mysql.createPool({
+  uri: process.env.MYSQL_URL
+});
 
-// connect to DB
-db.connect((err) => {
+// test DB
+db.getConnection((err, conn) => {
   if (err) {
     console.log("❌ DB ERROR:", err);
   } else {
-    console.log("✅ Database Connected");
+    console.log("✅ DB Connected");
+    conn.release();
   }
 });
 
-// add data
+app.get("/", (req, res) => {
+  res.send("Server is running");
+});
+
 app.post("/add", (req, res) => {
   const { name, email } = req.body;
 
@@ -26,31 +31,20 @@ app.post("/add", (req, res) => {
     "INSERT INTO users (name, email) VALUES (?, ?)",
     [name, email],
     (err) => {
-      if (err) {
-        console.log(err);
-        res.send("Error");
-      } else {
-        res.send("User added");
-      }
+      if (err) return res.send("Error");
+      res.send("User added");
     }
   );
 });
 
-// get data
 app.get("/users", (req, res) => {
   db.query("SELECT * FROM users", (err, result) => {
-    if (err) res.send(err);
-    else res.json(result);
+    if (err) return res.send(err);
+    res.json(result);
   });
 });
 
-// home route
-app.get("/", (req, res) => {
-  res.send("Server is running");
-});
-
-// start server
-const PORT = process.env.PORT || 5000; // ✅ important for Render
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
